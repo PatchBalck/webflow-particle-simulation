@@ -255,7 +255,7 @@ let renderer, scene, camera;
 const clock = new THREE.Clock();
 
 const maxParticles = 8192 * 16;
-const gridSize1d = 64;
+const gridSize1d = 48;
 const gridSize = new THREE.Vector3(gridSize1d, gridSize1d, gridSize1d);
 const fixedPointMultiplier = 1e7;
 
@@ -283,7 +283,7 @@ if (WebGPU.isAvailable() === false) {
 }
 
 const params = {
-  particleCount: 60000,
+  particleCount: 40000,
   gravity: 0,
   turbulenceStrength: 1,
   turbulenceFreq: 40,
