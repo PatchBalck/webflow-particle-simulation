@@ -503,6 +503,12 @@ async function init() {
 
   renderer.setAnimationLoop(render);
   
+  // Listen for pause event from preloader (Chrome GPU fix)
+  window.addEventListener('pauseParticles', () => {
+    console.log('Pausing particle rendering for fade');
+    renderer.setAnimationLoop(null); // Stop render loop
+  });
+  
   // Dispatch loading complete event
   window.dispatchEvent(new CustomEvent('particleLoadComplete'));
 }
