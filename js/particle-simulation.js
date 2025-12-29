@@ -509,6 +509,12 @@ async function init() {
     renderer.setAnimationLoop(null); // Stop render loop
   });
   
+  // Listen for resume event after fade completes
+  window.addEventListener('resumeParticles', () => {
+    console.log('Resuming particle rendering');
+    renderer.setAnimationLoop(render); // Restart render loop
+  });
+  
   // Dispatch loading complete event
   window.dispatchEvent(new CustomEvent('particleLoadComplete'));
 }
