@@ -2,7 +2,7 @@ import {
 	ShaderMaterial,
 	UniformsUtils
 } from 'three';
-import { Pass, FullScreenQuad } from './Pass.js';
+import { Pass, FullScreenQuad } from 'https://cdn.jsdelivr.net/gh/PatchBlack/patchblack-code@bf2bf55e614256e14f93de9aa6ef4b56f17e9aa7/three/examples/jsm/postprocessing/Pass.js';
 
 /**
  * This pass can be used to create a post processing effect
