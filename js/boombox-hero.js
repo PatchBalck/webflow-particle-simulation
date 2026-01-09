@@ -595,9 +595,3 @@
 
       console.log('Boombox experience initialized');
 
-<!-- Custom Cursor HTML -->
-<div id="custom-cursor">
-  <div class="cursor-button">
-    <span id="cursor-text">PLAY</span>
-  </div>
-</div>
