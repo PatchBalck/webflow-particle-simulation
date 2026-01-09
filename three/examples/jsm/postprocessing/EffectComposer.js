@@ -5,9 +5,9 @@ import {
 	Vector2,
 	WebGLRenderTarget
 } from 'three';
-import { CopyShader } from '../shaders/CopyShader.js';
-import { ShaderPass } from './ShaderPass.js';
-import { ClearMaskPass, MaskPass } from './MaskPass.js';
+import { CopyShader } from 'https://cdn.jsdelivr.net/gh/PatchBlack/patchblack-code@7f23319f173a1b631b4c0cc738dcbca4eb445c9d/three/examples/jsm/shaders/CopyShader.js';
+import { ShaderPass } from 'https://cdn.jsdelivr.net/gh/PatchBlack/patchblack-code@7f23319f173a1b631b4c0cc738dcbca4eb445c9d/three/examples/jsm/postprocessing/ShaderPass.js';
+import { ClearMaskPass, MaskPass } from 'https://cdn.jsdelivr.net/gh/PatchBlack/patchblack-code@7f23319f173a1b631b4c0cc738dcbca4eb445c9d/three/examples/jsm/postprocessing/MaskPass.js';
 
 /**
  * Used to implement post-processing effects in three.js.
