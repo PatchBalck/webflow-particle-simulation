@@ -108,7 +108,7 @@ const fillLight = new THREE.DirectionalLight(0xb0bbcb, 0.5);
 fillLight.position.set(0, -3, 5);
 scene.add(fillLight);
 
-// ===== AUDIO SETUP (FIXED) =====
+// ===== AUDIO SETUP =====
 const audio = new Audio();
 audio.crossOrigin = "anonymous";
 audio.src = `${ASSET_BASE}/assets/audio/Boombox-audio.mp3`;
@@ -121,7 +121,6 @@ const audioSource = audioContext.createMediaElementSource(audio);
 const analyser = audioContext.createAnalyser();
 analyser.fftSize = 64;
 
-// FIX #1: Add these missing declarations for waveform
 const bufferLength = analyser.frequencyBinCount;
 const dataArray = new Uint8Array(bufferLength);
 
@@ -144,8 +143,11 @@ const ctx = canvas.getContext('2d', { alpha: true });
 const canvasTexture = new THREE.CanvasTexture(canvas);
 canvasTexture.minFilter = THREE.LinearFilter;
 canvasTexture.magFilter = THREE.LinearFilter;
+// --- FIX: Ensure color space matches renderer for emissive consistency
+canvasTexture.colorSpace = THREE.SRGBColorSpace; 
 
 function drawWaveform() {
+  // Clear needs to happen regardless of playing state to keep transparency
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (!isPlaying) {
@@ -204,19 +206,7 @@ let playButton = null;
 let pauseButton = null;
 const buttonInitialRotations = new Map();
 
-function animateButton(button, targetRotation) {
-  if (!button) return;
-
-  const initialRotation = buttonInitialRotations.get(button);
-  const targetRad = THREE.MathUtils.degToRad(targetRotation);
-
-  gsap.to(button.rotation, {
-    x: initialRotation.x + targetRad,
-    duration: 0.3,
-    ease: "power2.out"
-  });
-}
-
+// --- LIGHTWEIGHT GSAP POLYFILL ---
 const gsap = {
   to: (target, props) => {
     const start = { x: target.x, y: target.y, z: target.z };
@@ -242,20 +232,33 @@ const gsap = {
   }
 };
 
-// ===== BUTTON POSITIONING =====
+function animateButton(button, targetRotation) {
+  if (!button) return;
+
+  const initialRotation = buttonInitialRotations.get(button);
+  const targetRad = THREE.MathUtils.degToRad(targetRotation);
+
+  gsap.to(button.rotation, {
+    x: initialRotation.x + targetRad,
+    duration: 0.3,
+  });
+}
+
+// ===== BUTTON POSITIONING OPTIMIZATION =====
+// --- FIX: Store the bounding box offset once, don't recalculate per frame
+let boomboxCenterOffset = new THREE.Vector3(0, -0.5, 0); 
+const tempVec = new THREE.Vector3();
+
 function updateButtonPosition() {
   if (!boombox || !isTouchDevice()) return;
   
-  const box = new THREE.Box3().setFromObject(boombox);
-  const bottomY = box.min.y;
-  const centerX = (box.min.x + box.max.x) / 2;
-  const centerZ = (box.min.z + box.max.z) / 2;
+  // Calculate world position based on current boombox position + stored offset
+  // This avoids traversing the scene graph every frame (massive performance save)
+  tempVec.copy(boombox.position).add(boomboxCenterOffset);
+  tempVec.project(camera);
   
-  const screenPosition = new THREE.Vector3(centerX, bottomY - 0.5, centerZ);
-  screenPosition.project(camera);
-  
-  const x = (screenPosition.x * 0.5 + 0.5) * window.innerWidth;
-  const y = (screenPosition.y * -0.5 + 0.5) * window.innerHeight;
+  const x = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (tempVec.y * -0.5 + 0.5) * window.innerHeight;
   
   const button = document.getElementById('custom-cursor');
   if (button) {
@@ -275,13 +278,16 @@ const raycaster = new THREE.Raycaster();
 const clickMouse = new THREE.Vector2();
 
 window.addEventListener('mousemove', (event) => {
+  // --- FIX: Don't calculate mouse parallax on touch devices to prevent jumping
+  if (isTouchDevice()) return;
+
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = (event.clientY / window.innerHeight) * 2 - 1;
 
   targetRotation.y = mouse.x * THREE.MathUtils.degToRad(20);
   targetRotation.x = mouse.y * THREE.MathUtils.degToRad(10);
 
-  if (!isTouchDevice() && window.innerWidth > 1024) {
+  if (window.innerWidth > 1024) {
     const customCursor = document.getElementById('custom-cursor');
     if (customCursor) {
       customCursor.style.left = event.clientX + 'px';
@@ -306,7 +312,7 @@ window.addEventListener('mousemove', (event) => {
   } else {
     if (isHovering) {
       isHovering = false;
-      if (!isTouchDevice() && window.innerWidth > 1024) {
+      if (window.innerWidth > 1024) {
         const customCursor = document.getElementById('custom-cursor');
         if (customCursor) customCursor.classList.remove('active');
       }
@@ -374,26 +380,25 @@ loader.load(
   (gltf) => {
     boombox = gltf.scene;
 
+    // --- FIX: Center the geometry itself OR calculate center once
     const box = new THREE.Box3().setFromObject(boombox);
     const center = box.getCenter(new THREE.Vector3());
     boombox.position.sub(center);
 
+    // Calculate offset for mobile button (bottom of the box)
+    // We do this ONCE here, not every frame
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    boomboxCenterOffset.set(0, -size.y / 2 - 0.5, 0);
+
     gltf.scene.traverse((child) => {
       if (child.name === 'play-button') {
         playButton = child;
-        buttonInitialRotations.set(playButton, {
-          x: child.rotation.x,
-          y: child.rotation.y,
-          z: child.rotation.z
-        });
+        buttonInitialRotations.set(playButton, { ...child.rotation });
       }
       if (child.name === 'pause-button') {
         pauseButton = child;
-        buttonInitialRotations.set(pauseButton, {
-          x: child.rotation.x,
-          y: child.rotation.y,
-          z: child.rotation.z
-        });
+        buttonInitialRotations.set(pauseButton, { ...child.rotation });
       }
 
       if (child.isMesh) {
@@ -425,27 +430,11 @@ loader.load(
       tapeAction = mixer.clipAction(gltf.animations[0]);
       tapeAction.loop = THREE.LoopRepeat;
       tapeAction.clampWhenFinished = false;
-    } else {
-      console.warn('No animations found in model');
     }
 
     scene.add(boombox);
 
-    if (shouldRotateBoombox()) {
-      boombox.rotation.z = THREE.MathUtils.degToRad(90);
-      boombox.scale.set(0.6, 0.6, 0.6);
-      
-      const rotatedBox = new THREE.Box3().setFromObject(boombox);
-      const rotatedCenter = rotatedBox.getCenter(new THREE.Vector3());
-      boombox.position.sub(rotatedCenter);
-    } else if (isTouchDevice()) {
-      boombox.scale.set(0.8, 0.8, 0.8);
-      
-      const box = new THREE.Box3().setFromObject(boombox);
-      const center = box.getCenter(new THREE.Vector3());
-      boombox.position.sub(center);
-    }
-
+    handleResize(); // Initial placement logic
     drawWaveform();
     console.log('Boombox loaded successfully!');
   },
@@ -507,37 +496,27 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ===== AUDIO TOGGLE =====
 function toggleAudio() {
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+
   if (isPlaying) {
     audio.pause();
     if (tapeAction) tapeAction.paused = true;
     animateButton(pauseButton, 16);
     isPlaying = false;
   } else {
-    if (audioContext.state === "suspended") {
-      audioContext.resume();
-    }
-
-    audio.play().catch(err => {
-      console.warn("Audio failed to play:", err);
-    });
+    audio.play().catch(err => console.warn("Audio play failed:", err));
     
     if (tapeAction) {
       if (!tapeAction.isRunning()) tapeAction.play();
       tapeAction.paused = false;
     }
     
-    if (pauseButton && buttonInitialRotations.has(pauseButton)) {
-      const currentPauseRotation = pauseButton.rotation.x;
-      const initialPauseRotation = buttonInitialRotations.get(pauseButton).x;
-      
-      if (Math.abs(currentPauseRotation - initialPauseRotation) > 0.1) {
+    if (pauseButton) {
         animateButton(pauseButton, 0);
-      } else {
-        animateButton(playButton, 16);
-      }
-    } else {
-      animateButton(playButton, 16);
     }
+    animateButton(playButton, 16);
     
     isPlaying = true;
   }
@@ -558,12 +537,15 @@ function animate() {
   drawWaveform();
 
   if (boombox) {
-    // FIX #2: This should always run - rotation updates every frame
-    currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
-    currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
+    // --- FIX: Only rotate with mouse if NOT touch device ---
+    // This prevents the Z-rotated mobile view from being overwritten by X/Y mouse values
+    if (!isTouchDevice()) {
+      currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
+      currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
 
-    boombox.rotation.x = currentRotation.x;
-    boombox.rotation.y = currentRotation.y;
+      boombox.rotation.x = currentRotation.x;
+      boombox.rotation.y = currentRotation.y;
+    }
     
     updateButtonPosition();
   }
@@ -574,38 +556,35 @@ function animate() {
 animate();
 
 // ===== WINDOW RESIZE =====
+// --- FIX: Extracted resize logic to a function for re-use
+function handleResize() {
+  if(!boombox) return;
+
+  if (shouldRotateBoombox()) {
+    // Vertical Mobile
+    boombox.rotation.set(0, 0, THREE.MathUtils.degToRad(90));
+    boombox.scale.set(0.6, 0.6, 0.6);
+  } else if (isTouchDevice()) {
+    // Landscape Mobile
+    boombox.rotation.set(0, 0, 0);
+    boombox.scale.set(0.8, 0.8, 0.8);
+  } else {
+    // Desktop
+    boombox.rotation.set(0, 0, 0);
+    boombox.scale.set(1, 1, 1);
+  }
+  
+  // Re-center logic if needed, but simple scale/rotation usually suffices 
+  // if model was centered at (0,0,0) during load.
+}
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
   
-  if (boombox) {
-    if (shouldRotateBoombox()) {
-      boombox.rotation.z = THREE.MathUtils.degToRad(90);
-      boombox.scale.set(0.6, 0.6, 0.6);
-      
-      const rotatedBox = new THREE.Box3().setFromObject(boombox);
-      const rotatedCenter = rotatedBox.getCenter(new THREE.Vector3());
-      boombox.position.sub(rotatedCenter);
-    } else if (isTouchDevice()) {
-      boombox.rotation.z = 0;
-      boombox.scale.set(0.8, 0.8, 0.8);
-      
-      const box = new THREE.Box3().setFromObject(boombox);
-      const center = box.getCenter(new THREE.Vector3());
-      boombox.position.sub(center);
-    } else {
-      boombox.rotation.z = 0;
-      boombox.scale.set(1, 1, 1);
-      
-      const box = new THREE.Box3().setFromObject(boombox);
-      const center = box.getCenter(new THREE.Vector3());
-      boombox.position.sub(center);
-    }
-    
-    updateButtonPosition();
-  }
+  handleResize();
 });
 
 console.log('Boombox experience initialized');
