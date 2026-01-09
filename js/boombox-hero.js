@@ -594,3 +594,122 @@
       });
 
       console.log('Boombox experience initialized');
+
+<style>
+  /* Desktop cursor */
+  @media (min-width: 1025px) and (hover: hover) and (pointer: fine) {
+    body.cursor-play,
+    body.cursor-pause {
+      cursor: none;
+    }
+
+    #custom-cursor {
+      position: fixed;
+      pointer-events: none;
+      z-index: 10000;
+      transform: translate(-50%, -50%);
+      display: none;
+    }
+
+    #custom-cursor.active {
+      display: block;
+    }
+
+    .cursor-button {
+      background: #ffd441;
+      color: #000;
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(0.9rem, 1vw + 0.3rem, 1rem);
+      font-weight: 400;
+      width: 8rem;
+      height: 8rem;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      position: relative;
+    }
+  }
+
+  /* Tablet/Mobile */
+  @media (max-width: 1024px), (hover: none) {
+    #custom-cursor {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, 0);
+      z-index: 10000;
+      display: none;
+    }
+
+    #custom-cursor.active {
+      display: block;
+    }
+
+    .cursor-button {
+      background: #ffffff;
+      color: #000;
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(0.9rem, 1vw + 0.3rem, 1rem);
+      font-weight: 400;
+      width: clamp(4.5rem, 1vw + 5rem, 20rem);
+      height: clamp(4.5rem, 1vw + 5rem, 20rem);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+  }
+
+  /* Letter animation */
+  #cursor-text {
+    display: inline-flex;
+    white-space: nowrap;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .letter-wrapper {
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
+    vertical-align: middle;
+  }
+
+  .letter {
+    display: block;
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .letter + .letter {
+    position: absolute;
+    left: 0;
+    top: -140%;
+    transform-origin: left center;
+    transform: skewY(-30deg);
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .letter-wrapper.animate .letter:first-child {
+    transform: translateY(140%) skewY(-7deg);
+  }
+
+  .letter-wrapper.animate .letter + .letter {
+    transform: translateY(140%) skewY(0deg);
+  }
+</style>
+
+<!-- Custom Cursor HTML -->
+<div id="custom-cursor">
+  <div class="cursor-button">
+    <span id="cursor-text">PLAY</span>
+  </div>
+</div>
